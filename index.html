@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CrioFan Control V2</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons CDN (FIXED) -->
+    <script src="https://unpkg.com/lucide@0.395.0/dist/umd/lucide.min.js"></script>
+    
+    <style>
+        /* --- Fuente Inter (Similar a la de Apple) --- */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        html, body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        /* --- Estilo de Tarjeta "Vidrio Esmerilado" (Frosted Glass) --- */
+        .glass-card {
+            background-color: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        /* --- Estilo del Toggle Switch (iOS Light) --- */
+        .toggle-track {
+            background-color: #E5E7EB; /* bg-gray-200 */
+            transition: background-color 0.3s ease;
+        }
+        .toggle-circle {
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transform: translateX(0.125rem); /* 2px */
+            transition: transform 0.3s ease;
+        }
+        .toggle-checkbox:checked + .toggle-track {
+            background-color: #3B82F6; /* bg-blue-500 */
+        }
+        .toggle-checkbox:checked + .toggle-track .toggle-circle {
+            transform: translateX(1.875rem); /* 30px */
+        }
+        
+        /* --- Estilo del Deslizador Vertical --- */
+        .slider-track {
+            background-color: #E5E7EB; /* bg-gray-200 */
+            overflow: hidden;
+        }
+        
+        /* --- Botones de Modo (Segmented Control) --- */
+        .mode-btn {
+            background-color: transparent;
+            color: #4B5563; /* text-gray-600 */
+            transition: all 0.3s ease;
+        }
+        .mode-btn.active {
+            background-color: white;
+            color: #1F2937; /* text-gray-800 */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .no-select {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        /* Asegurar que el scroll se oculte */
+        .overflow-y-auto::-webkit-scrollbar {
+            display: none;
+        }
+        .overflow-y-auto {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="h-full bg-gradient-to-b from-blue-100 via-white to-white flex justify-center items-center p-4 no-select">
+
+    <!-- Contenedor Principal de la App (Simula un teléfono) -->
+    <div class="w-full max-w-md h-full bg-transparent overflow-hidden rounded-3xl flex flex-col p-2 space-y-4">
+        
+        <!-- 1. Cabecera: Nombre y Batería -->
+        <header class="flex justify-between items-center px-4 pt-4">
+            <h1 class="text-3xl font-bold text-zinc-800">Crio<span class="text-blue-500">Fan</span></h1>
+            <div id="battery-status" class="flex items-center space-x-2 bg-white/70 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-medium text-zinc-700 shadow-sm">
+                <span id="battery-level-text">88%</span>
+                <i id="battery-icon" data-lucide="battery-medium" class="text-zinc-500"></i>
+            </div>
+        </header>
+
+        <!-- 2. Estado del Dispositivo (Con Toggle Apple) -->
+        <div class="glass-card rounded-3xl p-5 flex justify-between items-center shadow-lg mx-2">
+            <div>
+                <h2 class="text-zinc-500 text-sm font-medium">Estado</h2>
+                <span id="device-status-text" class="text-xl font-semibold text-zinc-900">Activo</span>
+            </div>
+            <!-- Toggle de Encendido/Apagado -->
+            <label class="relative w-14 h-8 flex items-center cursor-pointer">
+                <input type="checkbox" id="power-toggle" class="toggle-checkbox absolute opacity-0 w-0 h-0" checked>
+                <div class="toggle-track w-full h-full rounded-full flex items-center p-1">
+                    <div class="toggle-circle w-6 h-6 rounded-full"></div>
+                </div>
+            </label>
+        </div>
+
+        <!-- Contenedor Principal con Overlay de Apagado -->
+        <div id="main-controls-wrapper" class="relative flex-1 flex flex-col space-y-4">
+            
+            <!-- 3. Controles Principales (REORGANIZADO) -->
+            <main class="flex-1 grid grid-cols-3 gap-4 h-full px-2">
+                
+                <!-- Columna Izquierda: Controles (Temp, Modo, Eco, Timer) -->
+                <div class="col-span-2 flex flex-col space-y-4 overflow-y-auto h-[65vh] md:h-auto">
+                    <!-- Monitor de Temperatura -->
+                    <div class="glass-card rounded-3xl p-5 flex flex-col justify-between h-48 shadow-lg">
+                        <div class="flex items-center justify-between text-zinc-500">
+                            <span class="text-sm font-medium">Temp. Corporal</span>
+                            <i data-lucide="thermometer" class="w-5 h-5"></i>
+                        </div>
+                        <div class="text-center my-auto">
+                            <span id="current-temp" class="text-6xl font-bold text-zinc-800">37.0</span>
+                            <span class="text-3xl text-zinc-400 font-medium">&deg;C</span>
+                        </div>
+                        <div class="text-center">
+                            <span id="temp-trend" class="text-sm font-medium text-blue-500">Estable</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Modos -->
+                    <div class="glass-card rounded-3xl p-4 shadow-lg">
+                        <h3 class="text-sm font-medium text-zinc-500 px-1 mb-3">Modo</h3>
+                        <div class="flex justify-between bg-gray-100 rounded-full p-1">
+                            <button class="mode-btn active w-1/3 py-2 rounded-full" data-mode="normal">Normal</button>
+                            <button class="mode-btn w-1/3 py-2 rounded-full" data-mode="rendimiento">Rendimiento</button>
+                            <button class="mode-btn w-1/3 py-2 rounded-full" data-mode="sueño">Sueño</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Opciones Adicionales (Timer y Eco) -->
+                    <div class="glass-card rounded-3xl p-5 space-y-4 shadow-lg">
+                        <!-- Temporizador -->
+                        <div>
+                            <h3 class="text-sm font-medium text-zinc-500 mb-3">Temporizador</h3>
+                            <div class="flex justify-between bg-gray-100 rounded-full p-1">
+                                <button class="mode-btn timer-btn active w-1/4 py-2 rounded-full" data-time="0">Off</button>
+                                <button class="mode-btn timer-btn w-1/4 py-2 rounded-full" data-time="30">30 min</button>
+                                <button class="mode-btn timer-btn w-1/4 py-2 rounded-full" data-time="60">1 hr</button>
+                                <button class="mode-btn timer-btn w-1/4 py-2 rounded-full" data-time="120">2 hr</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Ahorro de Batería -->
+                        <div class="flex justify-between items-center pt-2">
+                            <div>
+                                <h3 class="text-sm font-medium text-zinc-900">Eco-Mode</h3>
+                                <span id="battery-saver-status" class="text-sm text-zinc-500">Optimiza el uso de energía</span>
+                            </div>
+                            <label class="relative w-14 h-8 flex items-center cursor-pointer">
+                                <input type="checkbox" id="eco-toggle" class="toggle-checkbox absolute opacity-0 w-0 h-0">
+                                <div class="toggle-track w-full h-full rounded-full flex items-center p-1">
+                                    <div class="toggle-circle w-6 h-6 rounded-full"></div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Columna Derecha: Control de Nivel de Frío (Protagonista) -->
+                <div class="col-span-1 glass-card rounded-3xl p-4 flex flex-col items-center justify-between h-full shadow-lg">
+                    <span class="text-sm font-medium text-zinc-500">Nivel</span>
+                    
+                    <!-- Deslizador Vertical Interactivo -->
+                    <div id="vertical-slider" class="relative w-full h-full my-3 flex justify-center items-end cursor-pointer" touch-action="none">
+                        <!-- Track (El fondo del deslizador) -->
+                        <div class="slider-track absolute inset-x-0 bottom-0 h-full bg-gray-200 rounded-full"></div>
+                        
+                        <!-- Nivel (El relleno azul que cambia de altura) -->
+                        <div id="slider-level" class="relative w-full bg-blue-500 rounded-full transition-height duration-100" style="height: 0%;"></div>
+                        
+                        <!-- Icono y % (Se mueven con el nivel) -->
+                        <div id="slider-thumb" class="absolute w-full flex flex-col items-center text-center transition-all duration-100 pointer-events-none" style="bottom: 10px;">
+                            <div class="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center mb-1">
+                                <i data-lucide="snowflake" class="w-6 h-6 text-blue-500"></i>
+                            </div>
+                            <span id="slider-percentage" class="text-lg font-bold text-zinc-800">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Overlay de Apagado -->
+            <div id="power-off-overlay" class="absolute inset-0 bg-white/80 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center text-zinc-500 text-lg font-medium transition-opacity duration-300 opacity-0 pointer-events-none z-50">
+                <i data-lucide="power-off" class="w-16 h-16 mb-4"></i>
+                <span>Dispositivo Apagado</span>
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        // Inicializar Lucide Icons
+        lucide.createIcons();
+
+        // --- 1. Estado Simulado del Dispositivo ---
+        // Este objeto guarda toda la "memoria" de la app
+        const deviceState = {
+            isPoweredOn: true,
+            currentTemp: 37.0,
+            targetLevel: 0, // Nivel de frío (0-100)
+            isEcoMode: false,
+            batteryLevel: 88,
+            activeMode: 'normal', // 'normal', 'rendimiento', 'sueño'
+            timerMinutes: 0, // 0 = sin temporizador
+            isDragging: false
+        };
+
+        // --- 2. Referencias a Elementos del DOM ---
+        // Guardamos los elementos en un objeto para acceder a ellos rápido
+        const dom = {
+            powerToggle: document.getElementById('power-toggle'),
+            powerOffOverlay: document.getElementById('power-off-overlay'),
+            deviceStatusText: document.getElementById('device-status-text'),
+            
+            batteryLevelText: document.getElementById('battery-level-text'),
+            batteryIcon: document.getElementById('battery-icon'),
+            
+            currentTemp: document.getElementById('current-temp'),
+            tempTrend: document.getElementById('temp-trend'),
+            
+            ecoToggle: document.getElementById('eco-toggle'),
+            
+            slider: document.getElementById('vertical-slider'),
+            sliderLevel: document.getElementById('slider-level'),
+            sliderThumb: document.getElementById('slider-thumb'),
+            sliderPercentage: document.getElementById('slider-percentage'),
+
+            modeButtons: document.querySelectorAll('.mode-btn:not(.timer-btn)'),
+            timerButtons: document.querySelectorAll('.timer-btn'),
+        };
+        
+        // --- 3. Lógica de UI (Actualizar la Pantalla) ---
+        // Esta función "dibuja" el estado (deviceState) en la pantalla
+        function updateUI() {
+            // A. Actualizar Estado de Encendido
+            if (deviceState.isPoweredOn) {
+                dom.powerOffOverlay.style.opacity = '0';
+                dom.powerOffOverlay.style.pointerEvents = 'none';
+                dom.deviceStatusText.textContent = 'Activo';
+            } else {
+                dom.powerOffOverlay.style.opacity = '1';
+                dom.powerOffOverlay.style.pointerEvents = 'auto';
+                dom.deviceStatusText.textContent = 'Apagado';
+            }
+            dom.powerToggle.checked = deviceState.isPoweredOn;
+
+            // B. Actualizar Nivel de Frío (El deslizador)
+            const level = deviceState.targetLevel;
+            const levelPercent = `${level}%`;
+            dom.sliderLevel.style.height = levelPercent;
+            
+            // Mover el icono y el texto
+            const sliderHeight = dom.slider.clientHeight;
+            const thumbHeight = dom.sliderThumb.clientHeight;
+            // Posiciona el pulgar (thumb) en el borde superior del nivel
+            let thumbBottom = (sliderHeight * (level / 100)) - (thumbHeight / 2);
+            // Limitar para que no se salga
+            thumbBottom = Math.max(10, Math.min(thumbBottom, sliderHeight - thumbHeight - 10)); // 10px de margen
+            
+            dom.sliderThumb.style.bottom = `${thumbBottom}px`;
+            dom.sliderPercentage.textContent = levelPercent;
+            
+
+            // C. Actualizar Batería
+            const battery = Math.floor(deviceState.batteryLevel);
+            dom.batteryLevelText.textContent = `${battery}%`;
+            
+            const batteryIconEl = dom.batteryIcon.querySelector('svg');
+            let newIconName = 'battery-full';
+            if (battery <= 20) newIconName = 'battery-low';
+            else if (battery <= 50) newIconName = 'battery-medium';
+            
+            if (batteryIconEl && batteryIconEl.dataset.lucide !== newIconName) {
+                if (batteryIconEl) batteryIconEl.remove();
+                dom.batteryIcon.innerHTML = lucide.createIcon(newIconName).outerHTML;
+            }
+
+            // D. Actualizar Ahorro de Batería
+            dom.ecoToggle.checked = deviceState.isEcoMode;
+
+            // E. Actualizar Temperatura
+            dom.currentTemp.textContent = deviceState.currentTemp.toFixed(1);
+            
+            // F. Actualizar Botones Activos (Modo y Timer)
+            // Esta es la "reacción" que pedías:
+            dom.modeButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === deviceState.activeMode);
+            });
+            dom.timerButtons.forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.time) === deviceState.timerMinutes);
+            });
+        }
+
+        // --- 4. Lógica del Deslizador (Slider) ---
+        
+        function handleSliderMove(e) {
+            if (!deviceState.isDragging || !deviceState.isPoweredOn) return;
+            
+            e.preventDefault();
+            const clientY = e.clientY || e.touches[0].clientY;
+            const rect = dom.slider.getBoundingClientRect();
+            
+            let level = (rect.bottom - clientY) / rect.height;
+            level = Math.max(0, Math.min(1, level));
+            
+            deviceState.targetLevel = Math.round(level * 100);
+            updateUI();
+        }
+
+        // Event Listeners del Deslizador (Mouse)
+        dom.slider.addEventListener('mousedown', (e) => {
+            if (!deviceState.isPoweredOn) return;
+            deviceState.isDragging = true;
+            dom.slider.classList.add('cursor-grabbing');
+            handleSliderMove(e);
+        });
+        
+        window.addEventListener('mousemove', handleSliderMove);
+        window.addEventListener('mouseup', () => {
+            deviceState.isDragging = false;
+            dom.slider.classList.remove('cursor-grabbing');
+        });
+        
+        // Event Listeners del Deslizador (Táctil)
+        dom.slider.addEventListener('touchstart', (e) => {
+            if (!deviceState.isPoweredOn) return;
+            deviceState.isDragging = true;
+            handleSliderMove(e);
+        }, { passive: false });
+        window.addEventListener('touchmove', handleSliderMove, { passive: false });
+        window.addEventListener('touchend', () => {
+            deviceState.isDragging = false;
+        });
+
+        // --- 5. Event Listeners de Controles ---
+        // Aquí es donde "conectamos" los botones al JavaScript
+
+        // Botón de Encendido
+        dom.powerToggle.addEventListener('change', () => {
+            deviceState.isPoweredOn = dom.powerToggle.checked;
+            updateUI(); // Actualiza la pantalla
+        });
+
+        // Toggle de Eco-Mode
+        dom.ecoToggle.addEventListener('change', () => {
+            deviceState.isEcoMode = dom.ecoToggle.checked;
+            updateUI(); // Actualiza la pantalla
+        });
+
+        // Botones de Modo (ESTA ES LA REACCIÓN)
+        dom.modeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (!deviceState.isPoweredOn) return; // No hacer nada si está apagado
+                deviceState.activeMode = btn.dataset.mode; // Cambia el estado
+                updateUI(); // "Dibuja" el cambio
+            });
+        });
+        
+        // Botones de Temporizador (ESTA ES LA REACCIÓN)
+        dom.timerButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (!deviceState.isPoweredOn) return;
+                deviceState.timerMinutes = parseInt(btn.dataset.time); // Cambia el estado
+                updateUI(); // "Dibuja" el cambio
+            });
+        });
+
+        // --- 6. Simulación (El "motor" falso) ---
+        // Este loop corre constantemente para simular la vida
+        
+        let lastTick = Date.now();
+        
+        function simulationLoop() {
+            const now = Date.now();
+            const delta = (now - lastTick) / 1000; // segundos
+            lastTick = now;
+            
+            if (!deviceState.isPoweredOn) {
+                // Si está apagado...
+                deviceState.batteryLevel -= (0.005 * delta);
+                let tempChange = (37.0 - deviceState.currentTemp) * 0.01;
+                deviceState.currentTemp += tempChange * delta * 20;
+                
+                dom.tempTrend.textContent = 'Apagado';
+                dom.tempTrend.classList.remove('text-blue-500', 'text-red-500');
+
+            } else {
+                // Si está encendido...
+                // --- Simulación de Temperatura ---
+                const tempRange = 11.0; // 37 (normal) - 26 (mínimo) = 11
+                let targetBodyTemp = 37.0 - ( (deviceState.targetLevel / 100) * tempRange );
+                
+                if (deviceState.activeMode === 'sueño') {
+                    targetBodyTemp = 37.0 - ( (deviceState.targetLevel / 100) * (tempRange * 0.6) );
+                }
+                
+                let tempDifference = targetBodyTemp - deviceState.currentTemp;
+                deviceState.currentTemp += (tempDifference * 0.1) * delta;
+                
+                // Actualizar tendencia
+                if (tempDifference < -0.05) {
+                    dom.tempTrend.textContent = 'Enfriando...';
+                    dom.tempTrend.classList.add('text-blue-500');
+                    dom.tempTrend.classList.remove('text-red-500');
+                } else if (tempDifference > 0.05) {
+                    dom.tempTrend.textContent = 'Calentando...';
+                    dom.tempTrend.classList.add('text-red-500');
+                    dom.tempTrend.classList.remove('text-blue-500');
+                } else {
+                    dom.tempTrend.textContent = 'Estable';
+                    dom.tempTrend.classList.remove('text-blue-500', 'text-red-500');
+                }
+
+                // --- Simulación de Batería ---
+                let batteryDrain = 0.01;
+                batteryDrain += (deviceState.targetLevel / 100) * 0.05;
+                if (deviceState.activeMode === 'rendimiento') batteryDrain *= 1.5;
+                if (deviceState.activeMode === 'sueño') batteryDrain *= 0.5;
+                if (deviceState.isEcoMode) batteryDrain *= 0.6;
+                deviceState.batteryLevel -= (batteryDrain * delta);
+                
+                // --- Simulación de Temporizador ---
+                if (deviceState.timerMinutes > 0) {
+                    deviceState.timerMinutes -= (delta / 60);
+                    if (deviceState.timerMinutes <= 0) {
+                        deviceState.timerMinutes = 0;
+                        deviceState.isPoweredOn = false; // Se apaga
+                    }
+                }
+            }
+            
+            // Limitar valores
+            deviceState.batteryLevel = Math.max(0, deviceState.batteryLevel);
+            deviceState.currentTemp = Math.max(26.0, deviceState.currentTemp);
+            
+            if (deviceState.batteryLevel === 0) {
+                deviceState.isPoweredOn = false;
+            }
+
+            // Actualizar la UI con los nuevos valores
+            updateUI();
+            
+            requestAnimationFrame(simulationLoop); // Loop suave
+        }
+
+        // --- Inicialización ---
+        updateUI(); // Dibuja el estado inicial
+        simulationLoop(); // Iniciar el loop de simulación
+
+    </script>
+</body>
+</html>
